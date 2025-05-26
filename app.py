@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for
 import mysql.connector
 import os
 
-db_password = os.environ.get("DATABASE_PASSWORD")
+db_password = os.environ.get("Mycode123!")
 # Use db_password in your SQL connection
 
 
