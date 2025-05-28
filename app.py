@@ -1,22 +1,19 @@
 from flask import Flask, render_template, request, redirect, url_for
 import mysql.connector
+from dotenv import load_dotenv
 import os
-
-
-db_password = os.environ.get("passowrd")
-# Use db_password in your SQL connection
 
 
 app = Flask(__name__)
 
-# MySQL connection config (no database yet)
+# MySQL configuration using environment variables
 db_config_base = {
-    'host': 'localhost',
-    'user': 'root',               
-    'password': 'your_password',  
+    'host': os.getenv("MYSQL_HOST"),
+    'user': os.getenv("MYSQL_USER"),
+    'password': os.getenv("MYSQL_PASSWORD")
 }
 
-db_name = 'work_logs'
+db_name = os.getenv("MYSQL_DATABASE")
 
 # Schema for each table
 table_schema = """
