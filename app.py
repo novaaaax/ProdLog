@@ -3,6 +3,7 @@ import mysql.connector
 from dotenv import load_dotenv
 import os
 
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -58,6 +59,7 @@ db_config = {
     'database': db_name
 }
 
+#grabbing data from user input, assigning it to proper table
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
