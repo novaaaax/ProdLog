@@ -2,7 +2,8 @@ from flask import Flask, render_template, request, redirect, url_for
 import mysql.connector
 import os
 
-db_password = os.environ.get("Mycode123!")
+
+db_password = os.environ.get("passowrd")
 # Use db_password in your SQL connection
 
 
@@ -12,7 +13,7 @@ app = Flask(__name__)
 db_config_base = {
     'host': 'localhost',
     'user': 'root',               
-    'password': 'Mycode123!',  
+    'password': 'your_password',  
 }
 
 db_name = 'work_logs'
