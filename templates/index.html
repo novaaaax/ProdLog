@@ -1,27 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Select Work Area</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Work Log - Home</title>
 </head>
 <body>
-  <div class="container">
-    <h2>Select Your Work Area</h2>
-    <form method="POST">
-      <select name="workArea" required>
-        <option value="">-- Please choose an area --</option>
-        <option value="cutting prep">Cutting Prep</option>
-        <option value="term">Term</option>
-        <option value="polish">Polish</option>
-        <option value="scope">Scope</option>
-        <option value="test">Test</option>
-        <option value="pack">Pack</option>
-      </select>
-      <button type="submit">Next</button>
+    <nav>
+        <a href="{{ url_for('index') }}">Home</a>
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('order_tracker') }}">Order Tracker</a>
+        <a href="{{ url_for('add_job') }}">Add Job</a>
+    </nav>
+    <h1>Select Area</h1>
+  <div class="form-container">
+    <form action="/select-line" method="post">
+        <select name="area">
+            <option value="cutting">Cutting</option>
+            <option value="prep">Prep</option>
+            <option value="polish">Polish</option>
+            <option value="scope">Scope</option>
+            <option value="test">Test</option>
+            <option value="pack">Pack</option>
+            <option value="term">Term</option>
+        </select>
+        <button type="submit">Go</button>
     </form>
   </div>
 </body>
 </html>
-

@@ -2,7 +2,7 @@
 <html>
 <head>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <title>Log Details</title>
+    <title>Add Job</title>
 </head>
 <body>
     <nav>
@@ -11,16 +11,13 @@
         <a href="{{ url_for('order_tracker') }}">Order Tracker</a>
         <a href="{{ url_for('add_job') }}">Add Job</a>
     </nav>
-    <h1>Log Entry for {{ area }}</h1>
+    <h1>Add Job Number</h1>
 <div class="form-container">
-    <form action="/submit" method="post">
-        <input type="hidden" name="area" value="{{ area }}">
-        Line: <input type="text" name="line" required><br>
+    <form method="post">
         Job Number: <input type="text" name="job_number" required><br>
-        Quantity: <input type="number" name="qty" required><br>
-        <button type="submit">Submit</button>
+        Number of Lines: <input type="number" name="num_lines" required><br>
+        <button type="submit">Add</button>
     </form>
 </div>
-    <a href="{{ url_for('index') }}">Go Back</a>
 </body>
 </html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Order Tracker</title>
+</head>
+<body>
+    <nav>
+        <a href="{{ url_for('index') }}">Home</a>
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('order_tracker') }}">Order Tracker</a>
+        <a href="{{ url_for('add_job') }}">Add Job</a>
+    </nav>
+    <h1>Order Tracker</h1>
+    <table border="1">
+        <tr>
+            <th>Job Number</th>
+            <th>Number of Lines</th>
+            <th>Cutting</th>
+            <th>Prep</th>
+            <th>Polish</th>
+            <th>Scope</th>
+            <th>Test</th>
+            <th>Pack</th>
+        </tr>
+        {% for job_number, info in data.items() %}
+        <tr>
+            <td>{{ job_number }}</td>
+            <td>{{ info.num_lines }}</td>
+            <td>{{ info.cutting }}</td>
+            <td>{{ info.prep }}</td>
+            <td>{{ info.polish }}</td>
+            <td>{{ info.scope }}</td>
+            <td>{{ info.test }}</td>
+            <td>{{ info.pack }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

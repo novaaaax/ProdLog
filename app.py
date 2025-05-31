@@ -1,112 +1,253 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, flash
 import mysql.connector
 from dotenv import load_dotenv
+from datetime import datetime
 import os
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import threading
+import schedule
+import time
 
+# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = 'your_secret_key'
 
-# MySQL configuration using environment variables
-db_config_base = {
-    'host': os.getenv("MYSQL_HOST"),
-    'user': os.getenv("MYSQL_USER"),
-    'password': os.getenv("MYSQL_PASSWORD")
-}
-
-db_name = os.getenv("MYSQL_DATABASE")
-
-# Schema for each table
-table_schema = """
-CREATE TABLE IF NOT EXISTS {table_name} (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    line VARCHAR(10),
-    job_number VARCHAR(50),
-    qty INT,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
-"""
-
-def init_db():
-    # Connect without specifying database
-    connection = mysql.connector.connect(**db_config_base)
-    cursor = connection.cursor()
-
-    # Create database if it doesn't exist
-    cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
-    connection.commit()
-
-    # Select the database
-    cursor.execute(f"USE {db_name}")
-
-    # List of tables (work areas)
-    tables = ['cutting_prep', 'term', 'polish', 'scope', 'test', 'pack']
-
-    # Create tables if not exist
-    for table in tables:
-        cursor.execute(table_schema.format(table_name=table))
-    connection.commit()
-
-    cursor.close()
-    connection.close()
-
-# Call the function on app start
-init_db()
-
-# Now full db config with database name
+# Load DB credentials from environment variables
 db_config = {
-    **db_config_base,
-    'database': db_name
+    'user': os.getenv('MYSQL_USER'),
+    'password': os.getenv('MYSQL_PASSWORD'),
+    'host': 'localhost',
+    'database': 'work_logs'
 }
 
-#grabbing data from user input, assigning it to proper table
-@app.route("/", methods=["GET", "POST"])
+def initialize_database():
+    try:
+        base_config = db_config.copy()
+        base_config.pop('database')
+        connection = mysql.connector.connect(**base_config)
+        cursor = connection.cursor()
+
+        # Create database
+        cursor.execute("CREATE DATABASE IF NOT EXISTS work_logs")
+        connection.database = 'work_logs'
+
+        # Create term_logs table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS term_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                line VARCHAR(10),
+                job_number VARCHAR(50),
+                qty INT,
+                timestamp DATETIME
+            )
+        """)
+
+        # Create tables for other work areas
+        areas = ['cutting', 'prep', 'polish', 'scope', 'test', 'pack']
+        for area in areas:
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS {area}_logs (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    line VARCHAR(10),
+                    job_number VARCHAR(50),
+                    qty INT,
+                    timestamp DATETIME
+                )
+            """)
+
+        # Create order_tracker table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS order_tracker (
+                job_number VARCHAR(50) PRIMARY KEY,
+                num_lines INT
+            )
+        """)
+
+        connection.commit()
+        cursor.close()
+        connection.close()
+    except mysql.connector.Error as e:
+        print(f"Initialization Error: {e}")
+
+# Initialize DB at startup
+initialize_database()
+
+# ----------- ROUTES -----------
+
+@app.route('/')
 def index():
-    if request.method == "POST":
-        selected_area = request.form.get("workArea")
-        if selected_area:
-            return redirect(url_for('details', area=selected_area))
-    return render_template("index.html")
+    return render_template('index.html')
 
-@app.route("/details", methods=["GET", "POST"])
-def details():
-    area = request.args.get("area", None)
-    if not area:
-        return redirect(url_for('index'))
+@app.route('/select-line', methods=['POST'])
+def select_line():
+    area = request.form['area']
+    return render_template('details.html', area=area)
 
-    if request.method == "POST":
-        line = request.form.get("line")
-        job_number = request.form.get("job_number")
-        qty = request.form.get("qty")
+@app.route('/submit', methods=['POST'])
+def submit_data():
+    area = request.form['area']
+    line = request.form['line']
+    job_number = request.form['job_number']
+    qty = request.form['qty']
 
-        if not job_number.replace('-', '').isdigit() or not qty.isdigit():
-            error = "Invalid input. Please enter a valid Job Number and numeric Qty."
-            return render_template("details.html", area=area, error=error)
+    try:
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
 
-        connection = None
+        # Check if job number exists
+        cursor.execute("SELECT COUNT(*) FROM order_tracker WHERE job_number = %s", (job_number,))
+        exists = cursor.fetchone()[0]
+        if not exists:
+            flash("This Job Number does not exist")
+            return redirect(url_for('index'))
+
+        table = f"{area}_logs"
+        query = f"INSERT INTO {table} (line, job_number, qty, timestamp) VALUES (%s, %s, %s, %s)"
+        data = (line, job_number, qty, datetime.now())
+        cursor.execute(query, data)
+
+        connection.commit()
+        cursor.close()
+        connection.close()
+    except mysql.connector.Error as e:
+        return f"Database Error: {e}"
+
+    return redirect(url_for('index'))
+
+@app.route('/dashboard')
+def dashboard():
+    try:
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            SELECT line, SUM(qty) 
+            FROM term_logs 
+            GROUP BY line
+        """)
+        results = cursor.fetchall()
+        lines = [r[0] for r in results]
+        values = [r[1] for r in results]
+
+        # Generate chart
+        plt.figure(figsize=(6, 4))
+        plt.bar(lines, values, color='teal')
+        plt.title("Terminations by Line")
+        plt.ylabel("Quantity")
+        plt.savefig('static/term_chart.png')
+        plt.close()
+
+        cursor.close()
+        connection.close()
+    except mysql.connector.Error as e:
+        return f"Dashboard Error: {e}"
+
+    return render_template('dashboard.html')
+
+@app.route('/add-job', methods=['GET', 'POST'])
+def add_job():
+    if request.method == 'POST':
+        job_number = request.form['job_number']
+        num_lines = request.form['num_lines']
+
         try:
             connection = mysql.connector.connect(**db_config)
             cursor = connection.cursor()
-
-            table_name = area.replace(" ", "_").lower()
-
-            insert_query = f"""
-                INSERT INTO {table_name} (line, job_number, qty)
-                VALUES (%s, %s, %s)
-            """
-            cursor.execute(insert_query, (line, job_number, int(qty)))
+            cursor.execute("INSERT INTO order_tracker (job_number, num_lines) VALUES (%s, %s)", (job_number, num_lines))
             connection.commit()
+            cursor.close()
+            connection.close()
+        except mysql.connector.Error as e:
+            flash(f"Database Error: {e}")
+            return redirect(url_for('add_job'))
 
-        except mysql.connector.Error as err:
-            return f"❌ Database Error: {err}"
-        finally:
-            if connection and connection.is_connected():
-                cursor.close()
-                connection.close()
+        return redirect(url_for('order_tracker'))
 
-        return f"✅ Saved to <strong>{table_name}</strong>: Line {line}, Job #{job_number}, Qty {qty}"
+    return render_template('add_job.html')
 
-    return render_template("details.html", area=area)
+@app.route('/order-tracker')
+def order_tracker():
+    try:
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
 
-if __name__ == "__main__":
+        cursor.execute("SELECT * FROM order_tracker")
+        jobs = cursor.fetchall()
+
+        data = {}
+        for job in jobs:
+            job_number = job[0]
+            data[job_number] = {'num_lines': job[1]}
+            for area in ['cutting', 'prep', 'polish', 'scope', 'test', 'pack']:
+                cursor.execute(f"SELECT SUM(qty) FROM {area}_logs WHERE job_number = %s", (job_number,))
+                total = cursor.fetchone()[0] or 0
+                data[job_number][area] = total
+
+        cursor.close()
+        connection.close()
+
+        return render_template('order_tracker.html', data=data)
+
+    except mysql.connector.Error as e:
+        return f"Order Tracker Error: {e}"
+
+# ----------- TIMED TASKS -----------
+
+def reset_term_chart():
+    try:
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
+        cursor.execute("DELETE FROM term_logs")
+        connection.commit()
+        cursor.close()
+        connection.close()
+        print("Term logs reset.")
+    except mysql.connector.Error as e:
+        print(f"Error resetting term logs: {e}")
+
+def save_term_chart():
+    try:
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            SELECT line, SUM(qty)
+            FROM term_logs
+            GROUP BY line
+        """)
+        results = cursor.fetchall()
+        lines = [r[0] for r in results]
+        values = [r[1] for r in results]
+
+        plt.figure(figsize=(6, 4))
+        plt.bar(lines, values, color='teal')
+        plt.title("Terminations by Line")
+        plt.ylabel("Quantity")
+        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M')
+        plt.savefig(f'static/term_chart_{timestamp}.png')
+        plt.close()
+
+        cursor.close()
+        connection.close()
+        print("Term chart saved.")
+    except mysql.connector.Error as e:
+        print(f"Error saving term chart: {e}")
+
+def run_scheduler():
+    schedule.every().day.at("06:30").do(reset_term_chart)
+    schedule.every().day.at("17:00").do(save_term_chart)
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
+
+scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+scheduler_thread.start()
+
+# ----------- MAIN ENTRY -----------
+
+if __name__ == '__main__':
     app.run(debug=True)
