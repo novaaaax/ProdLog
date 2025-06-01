@@ -15,9 +15,22 @@
 <div class="form-container">
     <form method="post">
         Job Number: <input type="text" name="job_number" required><br>
+        Date: <input type="date" id="my_date" name="my_date">
         Number of Lines: <input type="number" name="num_lines" required><br>
         <button type="submit">Add</button>
     </form>
 </div>
+<script>
+  const dateInput = document.getElementById('my_date');
+  const formattedDateSpan = document.getElementById('formattedDate');
+
+  dateInput.addEventListener('change', function() {
+    const selectedDate = new Date(this.value);
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const year = selectedDate.getFullYear();
+    formattedDateSpan.textContent = `${month}/${day}/${year}`;
+  });
+</script>
 </body>
 </html>

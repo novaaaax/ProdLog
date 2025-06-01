@@ -47,7 +47,7 @@ def initialize_database():
         """)
 
         # Create tables for other work areas
-        areas = ['cutting', 'prep', 'polish', 'scope', 'test', 'pack']
+        areas = ['cutting', 'prep','term', 'polish', 'scope', 'test', 'pack']
         for area in areas:
             cursor.execute(f"""
                 CREATE TABLE IF NOT EXISTS {area}_logs (
@@ -63,6 +63,7 @@ def initialize_database():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS order_tracker (
                 job_number VARCHAR(50) PRIMARY KEY,
+                my_date DATE,
                 num_lines INT
             )
         """)
@@ -92,7 +93,7 @@ def submit_data():
     area = request.form['area']
     line = request.form['line']
     job_number = request.form['job_number']
-    qty = request.form['qty']
+    qty = int(request.form['qty'])
 
     try:
         connection = mysql.connector.connect(**db_config)
@@ -152,12 +153,15 @@ def dashboard():
 def add_job():
     if request.method == 'POST':
         job_number = request.form['job_number']
+        my_date = request.form['my_date']
         num_lines = request.form['num_lines']
 
         try:
             connection = mysql.connector.connect(**db_config)
             cursor = connection.cursor()
-            cursor.execute("INSERT INTO order_tracker (job_number, num_lines) VALUES (%s, %s)", (job_number, num_lines))
+            cursor.execute(
+                " INSERT INTO order_tracker (job_number, my_date, num_lines) VALUES (%s, %s, %s)", 
+                           (job_number, my_date, num_lines))
             connection.commit()
             cursor.close()
             connection.close()
@@ -181,14 +185,15 @@ def order_tracker():
         data = {}
         for job in jobs:
             job_number = job[0]
-            data[job_number] = {'num_lines': job[1]}
-            for area in ['cutting', 'prep', 'polish', 'scope', 'test', 'pack']:
+            data[job_number] = {'my_date': job[1], 'num_lines': job[2]}
+            for area in ['cutting', 'prep', 'term', 'polish', 'scope', 'test', 'pack']:
                 cursor.execute(f"SELECT SUM(qty) FROM {area}_logs WHERE job_number = %s", (job_number,))
                 total = cursor.fetchone()[0] or 0
                 data[job_number][area] = total
 
         cursor.close()
         connection.close()
+        print("Jobs fetched from order_tracker:", jobs)
 
         return render_template('order_tracker.html', data=data)
 
@@ -251,3 +256,5 @@ scheduler_thread.start()
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+
