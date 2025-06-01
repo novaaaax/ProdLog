@@ -9,6 +9,12 @@ import matplotlib.pyplot as plt
 import threading
 import schedule
 import time
+import subprocess
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+import yagmail
 
 # Load environment variables
 load_dotenv()
@@ -23,6 +29,10 @@ db_config = {
     'host': 'localhost',
     'database': 'work_logs'
 }
+
+EMAIL_USER = os.getenv('EMAIL_USER')
+EMAIL_PASS = os.getenv('EMAIL_PASS')
+EMAIL_TO = os.getenv('EMAIL_TO')
 
 def initialize_database():
     try:
@@ -233,18 +243,58 @@ def save_term_chart():
         plt.title("Terminations by Line")
         plt.ylabel("Quantity")
         timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M')
-        plt.savefig(f'static/term_chart_{timestamp}.png')
+        chart_file = f'static/term_chart_{timestamp}.png'
+        plt.savefig(chart_file)
         plt.close()
 
         cursor.close()
         connection.close()
         print("Term chart saved.")
+        return chart_file
     except mysql.connector.Error as e:
         print(f"Error saving term chart: {e}")
+        return None
+
+def backup_and_email():
+    try:
+        dump_filename = 'backup.sql'
+        cmd = ["/opt/homebrew/opt/mysql-client/bin/mysqldump", "-u", 
+               db_config['user'], 
+               f"-p{db_config['password']}", 
+               db_config['database']]
+        with open(dump_filename, 'w') as f:
+            subprocess.run(cmd, stdout=f, check=True)
+
+        message = MIMEMultipart()
+        message['From'] =  EMAIL_USER
+        message['To'] = EMAIL_TO
+        message['Subject'] = 'Daily MySQL Schema and Term Chart'
+        message.attach(MIMEText('Attached are the daily MySQL Schema and chart.'))
+
+        with open(dump_filename, 'rb') as dump_file:
+            dump_attachment = MIMEApplication(dump_file.read(), subtype="sql")
+            dump_attachment.add_header('Conetent-Disposition', 'attachment', filename='backup.sql')
+            message.attach(dump_attachment)
+
+        with open('static/term_chart_{timestamp}.png', 'rb') as chart_file:
+            chart_attachment = MIMEApplication(chart_file.read(), subtype="png")
+            chart_attachment.add_header('Content-Disposition', 'attachment', filename='term.png')
+            message.attach(chart_attachment)
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(EMAIL_USER, EMAIL_PASS)
+            server.send_message(message)
+
+        print("Email sent successfully.")
+    except Exception as e:
+        print(f"Error in backup_and_email function: {e}")
 
 def run_scheduler():
     schedule.every().day.at("06:30").do(reset_term_chart)
-    schedule.every().day.at("17:00").do(save_term_chart)
+    # change time to 16:00 for launch
+    schedule.every().day.at("14:35").do(save_term_chart)
+    #change time to 16:30 for launch
+    schedule.every().day.at("14:35").do(backup_and_email)
     while True:
         schedule.run_pending()
         time.sleep(60)
