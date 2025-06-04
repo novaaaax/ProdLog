@@ -13,6 +13,8 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
+# will add weasprint feature later (send snapshots of tracker)
+# from weasyprint import HTML
 from io import BytesIO
 import zipfile
 
@@ -260,7 +262,8 @@ def backup_and_email():
         print(f"Error in backup_and_email function: {e}")
 
 def run_scheduler():
-    schedule.every().day.at("06:30").do(lambda: print("Reset Term Chart Placeholder"))
+    # will work on this feature later
+    # schedule.every().day.at("06:30").do(lambda: print("Reset Term Chart Placeholder"))
     # Change time to 4:30 for launch
     schedule.every().day.at("17:17").do(backup_and_email)
     while True:
