@@ -3,6 +3,12 @@
 <head>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <title>Order Tracker</title>
+    <!--Will move to style.css once i get it working-->
+    <style>
+        .highlight-today {
+            background-color: #f8d7da;
+        }
+    </style>
 </head>
 <body>
     <nav>
@@ -26,7 +32,7 @@
             <th>Pack</th>
         </tr>
         {% for job_number, info in data.items() %}
-        <tr>
+        <tr {% if info.my_date == today %}style="background-color: #f8d7da;"{% endif %}>
             <td>{{ job_number }}</td>
             <td>{{ info.my_date }}</td>
             <td>{{ info.num_lines }}</td>

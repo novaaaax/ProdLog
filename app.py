@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 import mysql.connector
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, date
 import os
 import matplotlib
 matplotlib.use('Agg')
@@ -178,7 +178,8 @@ def order_tracker():
         connection = mysql.connector.connect(**db_config)
         cursor = connection.cursor()
 
-        cursor.execute("SELECT * FROM order_tracker")
+        # Posting jobs to order_tracker by soonest date
+        cursor.execute("SELECT * FROM order_tracker ORDER by my_date ASC")
         jobs = cursor.fetchall()
 
         data = {}
@@ -192,7 +193,8 @@ def order_tracker():
 
         cursor.close()
         connection.close()
-        return render_template('order_tracker.html', data=data)
+        # Now passing today's date to order_tracker.html when calling function
+        return render_template('order_tracker.html', data=data, today=date.today())
     except mysql.connector.Error as e:
         return f"Order Tracker Error: {e}"
 
