@@ -3,6 +3,7 @@
 <head>
     <title>Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <nav>
@@ -11,9 +12,38 @@
         <a href="{{ url_for('order_tracker') }}">Order Tracker</a>
         <a href="{{ url_for('add_job') }}">Add Job</a>
     </nav>
+
     <h1>Terminations by Line</h1>
-    <div class="form-container">
-        <img src="{{ url_for('static', filename='term_chart.png') }}" alt="Term Chart">
-    </div>
+
+    <canvas id="termChart" width="600" height="300"></canvas>
+
+    <script>
+        const ctx = document.getElementById('termChart').getContext('2d');
+        const termChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ labels | tojson }},
+                datasets: [{
+                    label: 'Qty',
+                    data: {{ values | tojson }},
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: '#f44242' }
+                    },
+                    x: {
+                        ticks: { color: '#4285F4' }
+                    }
+                }
+            }
+        });
+    </script>
 </body>
 </html>

@@ -134,19 +134,20 @@ def dashboard():
         lines = [r[0] for r in results]
         values = [r[1] for r in results]
 
-        plt.figure(figsize=(6, 4))
-        plt.bar(lines, values, color='teal')
-        plt.title("Terminations by Line")
-        plt.ylabel("Quantity")
-        plt.savefig('static/term_chart.png')
-        plt.close()
+        #trying chart with JavaScript 
+        #plt.figure(figsize=(6, 4))
+        #plt.bar(lines, values, color='teal')
+        #plt.title("Terminations by Line")
+        #plt.ylabel("Quantity")
+        #plt.savefig('static/term_chart.png')
+        #plt.close()
 
         cursor.close()
         connection.close()
     except mysql.connector.Error as e:
         return f"Dashboard Error: {e}"
 
-    return render_template('dashboard.html')
+    return render_template('dashboard.html', labels=lines, values=values)
 
 @app.route('/add-job', methods=['GET', 'POST'])
 def add_job():
